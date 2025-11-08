@@ -7,7 +7,7 @@ pipeline {
     }
 
     environment {
-        REPO_URL = 'https://github.com/hkhcoder/vprofile-project.git'
+        REPO_URL = 'https://github.com/yadneeka/prac.git'
         VERSION_DIR = 'versions'
     }
 
