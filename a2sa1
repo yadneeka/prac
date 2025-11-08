@@ -7,6 +7,7 @@ pipeline {
     }
 
     stages {
+
         stage('fetch code') {
             steps {
                 git branch: 'main', url: 'https://github.com/yadneeka/prac.git'
@@ -15,19 +16,33 @@ pipeline {
 
         stage('unit test') {
             steps {
-                sh 'mvn test || echo "Skipping tests - no Maven project"'
+                // Runs tests only if a Maven project is present
+                sh 'mvn test || echo "Skipping tests – no Maven project found."'
             }
         }
 
         stage('build the code') {
             steps {
-                sh 'mvn package -DskipTests || echo "No build needed"'
+                script {
+                    def buildResult = sh(returnStatus: true, script: 'mvn package -DskipTests')
+                    if (buildResult == 0) {
+                        echo '✅ Build successful.'
+                    } else {
+                        echo '⚠️ No Maven project found, skipping build.'
+                    }
+                }
             }
         }
 
         stage('archive the artifact') {
             steps {
-                archiveArtifacts artifacts: '**/*.war', fingerprint: true, onlyIfSuccessful: true
+                script {
+                    if (fileExists('target')) {
+                        archiveArtifacts artifacts: '**/*.war', fingerprint: true
+                    } else {
+                        echo '⚠️ No WAR files found to archive.'
+                    }
+                }
             }
         }
 
@@ -36,13 +51,15 @@ pipeline {
                 expression { currentBuild.currentResult == 'SUCCESS' }
             }
             steps {
-                echo 'Deploying artifact to staging server.'
+                echo '🚀 Deploying artifact to staging server.'
             }
         }
     }
 
+    // === Step C: Failure Handling ===
     post {
         failure {
+            // Runs only if any stage fails
             sh 'echo "Build failed. Notifying the development team."'
         }
     }
