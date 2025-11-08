@@ -1,0 +1,79 @@
+pipeline {
+  agent { label 'builtin' }
+
+  environment {
+    IMAGE = "my-node-app"
+    CONTAINER = "nodeserver"
+    PORT = "5000"
+  }
+
+  stages {
+    stage('Fetch code') {
+      steps {
+        git branch: 'main', url: 'https://github.com/ajay-raut/spnodeserver.git'
+      }
+    }
+
+    stage('Build Docker image') {
+      steps {
+        echo "Building Docker image ${IMAGE}:${BUILD_ID}"
+        sh '''
+          set -e
+          docker build -t ${IMAGE}:${BUILD_ID} .
+        '''
+      }
+    }
+
+    stage('Run container') {
+      steps {
+        echo "Running container ${CONTAINER} on port ${PORT}"
+        sh '''
+          set -e
+          # remove any earlier container with same name (ignore errors)
+          docker rm -f ${CONTAINER} || true
+          docker run -d -p ${PORT}:5000 --name ${CONTAINER} ${IMAGE}:${BUILD_ID}
+        '''
+      }
+    }
+
+    stage('Show running containers & wait') {
+      steps {
+        sh '''
+          echo "=== Running containers ==="
+          docker ps --format "table {{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Ports}}"
+          echo "Waiting 10 seconds..."
+          sleep 10
+        '''
+      }
+    }
+
+    stage('Stop & remove container') {
+      steps {
+        sh '''
+          echo "Stopping container ${CONTAINER}..."
+          docker stop ${CONTAINER} || true
+          echo "Removing container ${CONTAINER}..."
+          docker rm ${CONTAINER} || true
+        '''
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "Pipeline succeeded."
+    }
+    failure {
+      // Sends email on failure. Requires Jenkins Mailer/Email-ext configured.
+      mail to: 'username@gmail.com',
+           subject: "FAIL: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+           body: """Build failed for ${env.JOB_NAME} #${env.BUILD_NUMBER}
+Console: ${env.BUILD_URL}console
+Check changes and console output."""
+    }
+    always {
+      // cleanup images (optional, best-effort)
+      sh 'docker images --format "{{.Repository}}:{{.Tag}} {{.ID}}" | grep "^${IMAGE}:" || true'
+    }
+  }
+}
