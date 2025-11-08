@@ -42,32 +42,16 @@ pipeline {
     }
 
     post {
-        success {
-            script {
-                slackSend(
-                    channel: '#jenkinsserver',
-                    color: 'good',     // green
-                    message: "✅ *SUCCESS:* ${env.JOB_NAME} #${env.BUILD_NUMBER}\n${env.BUILD_URL}"
-                )
-            }
-        }
-        unstable {
-            script {
-                slackSend(
-                    channel: '#jenkinsserver',
-                    color: 'warning',  // yellow
-                    message: "⚠️ *UNSTABLE:* ${env.JOB_NAME} #${env.BUILD_NUMBER}\n${env.BUILD_URL}"
-                )
-            }
-        }
-        failure {
-            script {
-                slackSend(
-                    channel: '#jenkinsserver',
-                    color: 'danger',   // red
-                    message: "❌ *FAILURE:* ${env.JOB_NAME} #${env.BUILD_NUMBER}\n${env.BUILD_URL}"
-                )
-            }
-        }
+    success {
+        slackSend channel: '#jenkinsserver', color: 'good',
+            message: "✅ SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}\n${env.BUILD_URL}"
+    }
+    failure {
+        slackSend channel: '#jenkinsserver', color: 'danger',
+            message: "❌ FAILURE: ${env.JOB_NAME} #${env.BUILD_NUMBER}\n${env.BUILD_URL}"
+    }
+    unstable {
+        slackSend channel: '#jenkinsserver', color: 'warning',
+            message: "⚠️ UNSTABLE: ${env.JOB_NAME} #${env.BUILD_NUMBER}\n${env.BUILD_URL}"
     }
 }
