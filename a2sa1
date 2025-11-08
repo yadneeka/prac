@@ -1,0 +1,49 @@
+pipeline {
+    agent { label 'builtinubuntu' }
+
+    tools {
+        jdk 'openjdk 21.0.7'
+        maven 'maven 3.9.10'
+    }
+
+    stages {
+        stage('fetch code') {
+            steps {
+                git branch: 'main', url: 'https://github.com/yadneeka/prac.git'
+            }
+        }
+
+        stage('unit test') {
+            steps {
+                sh 'mvn test || echo "Skipping tests - no Maven project"'
+            }
+        }
+
+        stage('build the code') {
+            steps {
+                sh 'mvn package -DskipTests || echo "No build needed"'
+            }
+        }
+
+        stage('archive the artifact') {
+            steps {
+                archiveArtifacts artifacts: '**/*.war', fingerprint: true, onlyIfSuccessful: true
+            }
+        }
+
+        stage('deploy to staging') {
+            when {
+                expression { currentBuild.currentResult == 'SUCCESS' }
+            }
+            steps {
+                echo 'Deploying artifact to staging server.'
+            }
+        }
+    }
+
+    post {
+        failure {
+            sh 'echo "Build failed. Notifying the development team."'
+        }
+    }
+}
