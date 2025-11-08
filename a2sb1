@@ -1,0 +1,73 @@
+https://github.com/yadneeka/prac.git
+pipeline {
+    agent { label 'builtinubuntu' }
+
+    tools {
+        jdk 'openjdk 21.0.7'
+        maven 'maven 3.9.10'
+    }
+
+    environment {
+        REPO_URL = 'https://github.com/yadneeka/prac.git'
+        IMAGE_VER_DIR = 'versions'
+    }
+
+    stages {
+
+        stage('Fetch Code') {
+            steps {
+                echo '📥 Cloning the repository...'
+                git branch: 'main', url: "${REPO_URL}"
+            }
+        }
+
+        stage('Build the Code') {
+            steps {
+                echo '🏗️ Building Maven project...'
+                sh '''
+                    mvn clean package -DskipTests
+                    mkdir -p ${IMAGE_VER_DIR}
+                    cp target/vprofile-v2.war ${IMAGE_VER_DIR}/vprofile-${BUILD_ID}.war
+                    echo "✅ Build artifact copied to ${IMAGE_VER_DIR}/vprofile-${BUILD_ID}.war"
+                '''
+            }
+        }
+
+        stage('Unit Test') {
+            steps {
+                echo '🧪 Running unit tests...'
+                sh 'mvn test'
+            }
+        }
+    }
+
+    post {
+        success {
+            script {
+                slackSend(
+                    channel: '#jenkinsserver',
+                    color: 'good',     // green
+                    message: "✅ *SUCCESS:* ${env.JOB_NAME} #${env.BUILD_NUMBER}\n${env.BUILD_URL}"
+                )
+            }
+        }
+        unstable {
+            script {
+                slackSend(
+                    channel: '#jenkinsserver',
+                    color: 'warning',  // yellow
+                    message: "⚠️ *UNSTABLE:* ${env.JOB_NAME} #${env.BUILD_NUMBER}\n${env.BUILD_URL}"
+                )
+            }
+        }
+        failure {
+            script {
+                slackSend(
+                    channel: '#jenkinsserver',
+                    color: 'danger',   // red
+                    message: "❌ *FAILURE:* ${env.JOB_NAME} #${env.BUILD_NUMBER}\n${env.BUILD_URL}"
+                )
+            }
+        }
+    }
+}
